@@ -20,46 +20,46 @@ namespace WebApi.Services
             _emailSenderService = new();
         }
 
-        public async Task<IActionResult> RequestPasswordUpdate(UserDto userDto)
+        public async Task<bool> RequestPasswordUpdate(UserDto userDto)
         {
             var user = await _unitOfWork.UserRepository.GetById(_userId);
 
             if (!PasswordHashService.VerifyPasswordHash(userDto.Password, user.PasswordHash, user.Salt) || user.Email != userDto.Email)
-                return new ForbidResult();
+                return false;
 
             var verificationCode = await _unitOfWork.VerificationCodeRepository.GetByUserId(_userId);
 
             if (verificationCode != null)
                 if (_unitOfWork.VerificationCodeRepository.Remove(verificationCode))
                     if (await _unitOfWork.Complete() <= 0)
-                        return new ObjectResult(null) { StatusCode = (int)HttpStatusCode.InternalServerError };
+                        return false;
 
             verificationCode = CreateVerificationCode(user);
 
             if (_unitOfWork.VerificationCodeRepository.Upsert(verificationCode))
                 if (await _unitOfWork.Complete() <= 0)
-                    return new ObjectResult(null) { StatusCode = (int)HttpStatusCode.InternalServerError };
+                    return false;
 
             _emailSenderService.SendEmail(userDto.Email, verificationCode.Code);
 
-            return new OkResult();
+            return true;
         }
 
-        public async Task<IActionResult> UpdatePassword(UpdatePasswordDto updatePasswordDto)
+        public async Task<bool> UpdatePassword(UpdatePasswordDto updatePasswordDto)
         {
             var verificationCode =
                 await _unitOfWork.VerificationCodeRepository.GetByGuid(updatePasswordDto.Guid);
 
             if (verificationCode == null)
-                return new NotFoundResult();
+                return false;
 
             if (verificationCode.User.Id != _userId)
-                return new ForbidResult();
+                return false;
 
             var user = await _unitOfWork.UserRepository.GetById(verificationCode.User.Id);
 
             if (user == null)
-                return new NotFoundResult();
+                return false;
 
             PasswordHashService.CreatePasswordHash(
                 updatePasswordDto.Password, out string hash, out string salt);
@@ -70,9 +70,9 @@ namespace WebApi.Services
             if (_unitOfWork.UserRepository.Upsert(user)
                 && _unitOfWork.VerificationCodeRepository.Remove(verificationCode))
                 if (await _unitOfWork.Complete() > 0)
-                    return new OkResult();
+                    return true;
 
-            return new ObjectResult(null) { StatusCode = (int)HttpStatusCode.InternalServerError };
+            return false;
         }
 
         private VerificationCode CreateVerificationCode(User user)

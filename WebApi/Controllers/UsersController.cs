@@ -29,11 +29,19 @@ namespace WebApi.Controllers
         }
 
         [HttpPost("request-password-update")]
-        public async Task<IActionResult> RequestPasswordUpdate([FromBody] UserDto userDto) =>
-            await _userService.RequestPasswordUpdate(userDto);
+        public async Task<IActionResult> RequestPasswordUpdate([FromBody] UserDto userDto)
+        {
+            if(await _userService.RequestPasswordUpdate(userDto))
+                return Ok();
+            return BadRequest(HttpResponseReasons.SomethingWentWrong);
+        }
 
         [HttpPut("submit-password-update")]
-        public async Task<IActionResult> UpdatePassword([FromBody] UpdatePasswordDto updatePasswordDto) =>
-            await _userService.UpdatePassword(updatePasswordDto);
+        public async Task<IActionResult> UpdatePassword([FromBody] UpdatePasswordDto updatePasswordDto)
+        {
+            if (await _userService.UpdatePassword(updatePasswordDto))
+                return Ok();
+            return BadRequest(HttpResponseReasons.SomethingWentWrong);
+        }
     }
 }
