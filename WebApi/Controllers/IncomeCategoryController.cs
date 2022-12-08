@@ -8,7 +8,7 @@ using System.Data.Entity.Migrations.Model;
 using System.Security.Claims;
 using WebApi.Constants;
 using WebApi.Dtos;
-using WebApi.Services;
+using WebApi.Services.ControllerServices;
 
 namespace WebApi.Controllers
 {

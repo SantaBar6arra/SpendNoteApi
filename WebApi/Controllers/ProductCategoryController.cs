@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using WebApi.Constants;
 using WebApi.Dtos;
+using WebApi.Services.ControllerServices;
 
 namespace WebApi.Controllers
 {
@@ -15,75 +16,34 @@ namespace WebApi.Controllers
     public class ProductCategoryController : ControllerBase
     {
         private readonly ILogger<UsersController> _logger;
-        private readonly IUnitOfWork _unitOfWork;
-
-        private int _userId;
+        private readonly ProductCategoryService _service;
 
         public ProductCategoryController(ILogger<UsersController> logger, IUnitOfWork unitOfWork, IHttpContextAccessor httpContextAccessor)
         {
             _logger = logger;
-            _unitOfWork = unitOfWork;
-            _userId = Convert.ToInt32(httpContextAccessor.HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier));
+            int userId = Convert.ToInt32(httpContextAccessor.HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier));
+            _service = new(unitOfWork, userId);
         }
 
         [HttpGet()]
-        public async Task<ActionResult<IEnumerable<ProductCategoryDto>>> GetAll()
-        {
-            var productCategories = await _unitOfWork.ProductCategoryRepository.GetAll(_userId);
-            List<ProductCategoryDto> productCategoryDtos = new() { Capacity = productCategories.Count() };
+        public async Task<ActionResult<IEnumerable<ProductCategoryDto>>> GetAll() =>
+            Ok(await _service.GetAll());
 
-            // use mapper
-            foreach (var productCategory in productCategories)
-                productCategoryDtos.Add(new()
-                {
-                    Name = productCategory.Name,
-                    Id = productCategory.Id,
-                    UserId = productCategory.User.Id
-                });
-
-            return Ok(productCategoryDtos);
-        }
 
         [HttpPut()]
         public async Task<IActionResult> Upsert([FromBody] ProductCategoryDto productCategoryDto)
         {
-            var user = await _unitOfWork.UserRepository.GetById(_userId);
-
-            if (user == null)
-                return BadRequest(HttpResponseReasons.UserNotFound); 
-
-            ProductCategory productCategory = new()
-            {
-                Id = productCategoryDto.Id,
-                User = user,
-                Name = productCategoryDto.Name,
-            };
-
-            if (_unitOfWork.ProductCategoryRepository.Upsert(productCategory))
-                if (await _unitOfWork.Complete() > 0)
-                    return Ok();
-
-            return Problem(HttpResponseReasons.SomethingWentWrong);
+            if (await _service.Upsert(productCategoryDto))
+                return Ok();
+            return BadRequest(HttpResponseReasons.SomethingWentWrong);
         }
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
-            var category = await _unitOfWork.ProductCategoryRepository.GetById(id);
-
-            if (category == null)
-                return NotFound(HttpResponseReasons.ObjToBeDeletedNotFound);
-
-            if (category.User.Id != _userId)
-                return Forbid(HttpResponseReasons.AccessForbidden);
-
-            if (_unitOfWork.ProductCategoryRepository.Remove(category))
-            {
-                await _unitOfWork.Complete();
+            if (await _service.Delete(id))
                 return Ok();
-            }
-
-            return Problem(HttpResponseReasons.SomethingWentWrong);
+            return BadRequest(HttpResponseReasons.SomethingWentWrong);
         }
     }
 }

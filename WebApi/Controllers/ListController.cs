@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using WebApi.Constants;
 using WebApi.Dtos;
+using WebApi.Services.ControllerServices;
 
 namespace WebApi.Controllers
 {
@@ -15,75 +16,34 @@ namespace WebApi.Controllers
     public class ListController : ControllerBase
     {
         private readonly ILogger<UsersController> _logger;
-        private readonly IUnitOfWork _unitOfWork;
-
-        private int _userId;
+        private readonly ListService _service;
 
         public ListController(ILogger<UsersController> logger, IUnitOfWork unitOfWork, IHttpContextAccessor httpContextAccessor)
         {
             _logger = logger;
-            _unitOfWork = unitOfWork;
-            _userId = Convert.ToInt32(httpContextAccessor.HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier));
+            int userId = Convert.ToInt32(httpContextAccessor.HttpContext.User.FindFirstValue(ClaimTypes.NameIdentifier));
+            _service = new(unitOfWork, userId);
         }
 
         [HttpGet()]
-        public async Task<ActionResult<IEnumerable<ListDto>>> GetAll()
-        {
-            var lists = await _unitOfWork.ListRepository.GetAll(_userId);
-            List<ListDto> listDtos = new() { Capacity = lists.Count() };
-
-            // use mapper
-            foreach (var list in lists)
-                listDtos.Add(new()
-                {
-                    Name = list.Name,
-                    Id = list.Id,
-                    UserId = list.User.Id
-                });
-
-            return Ok(listDtos);
-        }
+        public async Task<ActionResult<IEnumerable<ListDto>>> GetAll() =>
+            Ok(await _service.GetAll());
+        
 
         [HttpPut()]
         public async Task<IActionResult> Upsert([FromBody] ListDto listDto)
         {
-            var user = await _unitOfWork.UserRepository.GetById(_userId);
-
-            if (user == null)
-                return BadRequest(HttpResponseReasons.UserNotFound);
-
-            List list = new()
-            {
-                Id = listDto.Id,
-                User = user,
-                Name = listDto.Name,
-            };
-
-            if (_unitOfWork.ListRepository.Upsert(list))
-                if (await _unitOfWork.Complete() > 0)
-                    return Ok();
-
-            return Problem(HttpResponseReasons.SomethingWentWrong);
+            if (await _service.Upsert(listDto))
+                return Ok();
+            return BadRequest(HttpResponseReasons.SomethingWentWrong);
         }
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
-            var list = await _unitOfWork.ListRepository.GetById(id);
-
-            if (list == null)
-                return NotFound(HttpResponseReasons.ObjToBeDeletedNotFound);
-
-            if (list.User.Id != _userId)
-                return Forbid(HttpResponseReasons.AccessForbidden);
-
-            if (_unitOfWork.ListRepository.Remove(list))
-            {
-                await _unitOfWork.Complete();
+            if (await _service.Delete(id))
                 return Ok();
-            }
-
-            return Problem(HttpResponseReasons.SomethingWentWrong);
+            return BadRequest(HttpResponseReasons.SomethingWentWrong);
         }
     }
 }
