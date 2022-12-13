@@ -13,7 +13,7 @@ namespace WebApi.Controllers
     [Route("[controller]")]
     [ApiController]
     [Authorize]
-    public class ListController : ControllerBase
+    public class ListController : BaseController
     {
         private readonly ILogger<UsersController> _logger;
         private readonly ListService _service;
@@ -33,17 +33,15 @@ namespace WebApi.Controllers
         [HttpPut()]
         public async Task<IActionResult> Upsert([FromBody] ListDto listDto)
         {
-            if (await _service.Upsert(listDto))
-                return Ok();
-            return BadRequest(HttpResponseReasons.SomethingWentWrong);
+            var serviceResponse = await _service.Upsert(listDto);
+            return HandleServiceResponse(serviceResponse);
         }
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
-            if (await _service.Delete(id))
-                return Ok();
-            return BadRequest(HttpResponseReasons.SomethingWentWrong);
+            var serviceResponse = await _service.Delete(id);
+            return HandleServiceResponse(serviceResponse);
         }
     }
 }

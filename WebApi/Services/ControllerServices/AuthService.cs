@@ -1,6 +1,7 @@
 ﻿using Data;
 using Data.Models;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Net;
@@ -22,12 +23,12 @@ namespace WebApi.Services.ControllerServices
             _configuration = new ConfigurationBuilder().AddJsonFile(ConfigurationConstants.ConfigurationFileName).Build();
         }
 
-        public async Task<int?> Signup(UserDto userDto)
+        public async Task<ServiceResponse> Signup(UserDto userDto)
         {
             var dbUser = await _unitOfWork.UserRepository.GetByName(userDto.Name);
 
             if (dbUser != null)
-                return null;
+                return ServiceResponseUtils.FormWrongResponse(HttpResponseReasons.UserAlreadyExists);
 
             PasswordHashService.CreatePasswordHash(
                 userDto.Password, out string hash, out string salt);
@@ -42,23 +43,23 @@ namespace WebApi.Services.ControllerServices
 
             if (_unitOfWork.UserRepository.Upsert(user))
                 if (await _unitOfWork.Complete() <= 0)
-                    return null;
+                    return ServiceResponseUtils.FormWrongResponse();
             
             user = await _unitOfWork.UserRepository.GetByName(user.Name);
-            return user.Id;           
+            return ServiceResponseUtils.FormUserIdResponse(user.Id);           
         }
 
-        public async Task<TokenResult?> Login(UserDto userDto)
+        public async Task<ServiceResponse> Login(UserDto userDto)
         {
             User user = await _unitOfWork.UserRepository.GetByName(userDto.Name);
 
             if (user == null)
-                return null;
+                return ServiceResponseUtils.FormUserNotFoundResponse();
 
             if (PasswordHashService.VerifyPasswordHash(userDto.Password, user.PasswordHash, user.Salt))
-                return new() { Token = CreateToken(user) };
+                return ServiceResponseUtils.FormTokenResponse(CreateToken(user));
 
-            return null;
+            return ServiceResponseUtils.FormWrongResponse();
         }
 
         private string CreateToken(User user)

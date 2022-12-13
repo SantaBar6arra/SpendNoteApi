@@ -12,7 +12,7 @@ namespace WebApi.Controllers
     [Route("[controller]")]
     [ApiController]
     [Authorize]
-    public class ProductController : ControllerBase
+    public class ProductController : BaseController
     {
         private readonly ILogger<UsersController> _logger;
         private readonly ProductService _service;
@@ -25,29 +25,24 @@ namespace WebApi.Controllers
         }
 
         [HttpGet("{listId}")]
-        public async Task<ActionResult<IEnumerable<ProductDto>>> GetAll(int listId)
+        public async Task<IActionResult> GetAll(int listId)
         {
-            var productCategories = await _service.GetAll(listId);
-
-            if (productCategories == null)
-                return BadRequest(HttpResponseReasons.SomethingWentWrong);
-            return Ok(productCategories);
+            var serviceResponse = await _service.GetAll(listId);
+            return HandleServiceResponse(serviceResponse);
         }
 
         [HttpPut()]
         public async Task<IActionResult> Upsert([FromBody] ProductDto productDto)
         {
-            if (await _service.Upsert(productDto))
-                return Ok();
-            return BadRequest(HttpResponseReasons.SomethingWentWrong);
+            var serviceResponse = await _service.Upsert(productDto);
+            return HandleServiceResponse(serviceResponse);
         }
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
-            if (await _service.Delete(id))
-                return Ok();
-            return BadRequest(HttpResponseReasons.SomethingWentWrong);
+            var serviceResponse = await _service.Delete(id);
+            return HandleServiceResponse(serviceResponse);
         }
     }
 }

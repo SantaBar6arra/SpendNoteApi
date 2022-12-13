@@ -33,15 +33,15 @@ namespace WebApi.Services.ControllerServices
             return incomeCategoryDtos;
         }
 
-        public async Task<bool> Upsert([FromBody] IncomeCategoryDto categoryDto)
+        public async Task<ServiceResponse> Upsert(IncomeCategoryDto categoryDto)
         {
             var user = await _unitOfWork.UserRepository.GetById(_userId);
 
             if (user == null)
-                return false;
+                return ServiceResponseUtils.FormUserNotFoundResponse();
 
             if (categoryDto.UserId != 0 && categoryDto.UserId != _userId)
-                return false;
+                return ServiceResponseUtils.FormForbiddenResponse();
 
             IncomeCategory category = new()
             {
@@ -52,26 +52,26 @@ namespace WebApi.Services.ControllerServices
 
             if (_unitOfWork.IncomeCategoryRepository.Upsert(category))
                 if (await _unitOfWork.Complete() > 0)
-                    return true;
+                    return ServiceResponseUtils.FormOkResponse();
 
-            return false;
+            return ServiceResponseUtils.FormWrongResponse();
         }
 
-        public async Task<bool> Delete(int id)
+        public async Task<ServiceResponse> Delete(int id)
         {
             var category = await _unitOfWork.IncomeCategoryRepository.GetById(id);
 
             if (category == null)
-                return false;
+                return ServiceResponseUtils.FormNotFoundResponse(HttpResponseReasons.CategoryNotFound);
 
             if (category.User.Id != _userId)
-                return false;
+                return ServiceResponseUtils.FormForbiddenResponse();
 
             if (_unitOfWork.IncomeCategoryRepository.Remove(category))
                 if (await _unitOfWork.Complete() > 0)
-                    return true;
+                    return ServiceResponseUtils.FormOkResponse();
 
-            return false;
+            return ServiceResponseUtils.FormWrongResponse();
         }
     }
 }

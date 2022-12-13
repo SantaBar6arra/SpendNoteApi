@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System.Data.Entity.Migrations.Model;
+using System.Data.Entity.Validation;
 using System.Security.Claims;
 using WebApi.Constants;
 using WebApi.Dtos;
@@ -15,7 +16,7 @@ namespace WebApi.Controllers
     [Route("[controller]")]
     [ApiController]
     [Authorize]
-    public class IncomeCategoryController : ControllerBase
+    public class IncomeCategoryController : BaseController
     {
         private readonly ILogger<IncomeCategoryController> _logger;
         private readonly IncomeCategoryService _service;
@@ -35,17 +36,15 @@ namespace WebApi.Controllers
         [HttpPut()]
         public async Task<IActionResult> Upsert([FromBody] IncomeCategoryDto categoryDto)
         {
-            if (await _service.Upsert(categoryDto))
-                return Ok();
-            return BadRequest(HttpResponseReasons.SomethingWentWrong);
+            var serviceResponse = await _service.Upsert(categoryDto);
+            return HandleServiceResponse(serviceResponse);
         }
 
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id)
         {
-            if (await _service.Delete(id))
-                return Ok();
-            return BadRequest(HttpResponseReasons.SomethingWentWrong);
+            var serviceResponse = await _service.Delete(id);
+            return HandleServiceResponse(serviceResponse);
         }
     }
 }

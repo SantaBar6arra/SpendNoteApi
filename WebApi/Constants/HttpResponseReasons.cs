@@ -7,5 +7,7 @@
         public const string SomethingWentWrong = "something went wrong";
         public const string ObjToBeDeletedNotFound = "object that should be deleted not found";
         public const string AccessForbidden = "access forbidden";
+        public const string UserAlreadyExists = "user already exists";
+        public const string UserCreated = "user created";
     }
 }

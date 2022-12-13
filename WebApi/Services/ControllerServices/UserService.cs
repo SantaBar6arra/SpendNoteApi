@@ -20,46 +20,46 @@ namespace WebApi.Services.ControllerServices
             _emailSenderService = new();
         }
 
-        public async Task<bool> RequestPasswordUpdate(UserDto userDto)
+        public async Task<ServiceResponse> RequestPasswordUpdate(UserDto userDto)
         {
             var user = await _unitOfWork.UserRepository.GetById(_userId);
 
             if (!PasswordHashService.VerifyPasswordHash(userDto.Password, user.PasswordHash, user.Salt) || user.Email != userDto.Email)
-                return false;
+                return ServiceResponseUtils.FormWrongResponse("passwords do not match");
 
             var verificationCode = await _unitOfWork.VerificationCodeRepository.GetByUserId(_userId);
 
             if (verificationCode != null)
                 if (_unitOfWork.VerificationCodeRepository.Remove(verificationCode))
                     if (await _unitOfWork.Complete() <= 0)
-                        return false;
+                        return ServiceResponseUtils.FormWrongResponse();
 
             verificationCode = CreateVerificationCode(user);
 
             if (_unitOfWork.VerificationCodeRepository.Upsert(verificationCode))
                 if (await _unitOfWork.Complete() <= 0)
-                    return false;
+                    return ServiceResponseUtils.FormWrongResponse();
 
             _emailSenderService.SendEmail(userDto.Email, verificationCode.Code);
 
-            return true;
+            return ServiceResponseUtils.FormOkResponse();
         }
 
-        public async Task<bool> UpdatePassword(UpdatePasswordDto updatePasswordDto)
+        public async Task<ServiceResponse> UpdatePassword(UpdatePasswordDto updatePasswordDto)
         {
             var verificationCode =
                 await _unitOfWork.VerificationCodeRepository.GetByGuid(updatePasswordDto.Guid);
 
             if (verificationCode == null)
-                return false;
+                return ServiceResponseUtils.FormNotFoundResponse("code not found");
 
             if (verificationCode.User.Id != _userId)
-                return false;
+                return ServiceResponseUtils.FormWrongResponse("wrong code");
 
             var user = await _unitOfWork.UserRepository.GetById(verificationCode.User.Id);
 
             if (user == null)
-                return false;
+                return ServiceResponseUtils.FormUserNotFoundResponse();
 
             PasswordHashService.CreatePasswordHash(
                 updatePasswordDto.Password, out string hash, out string salt);
@@ -70,9 +70,9 @@ namespace WebApi.Services.ControllerServices
             if (_unitOfWork.UserRepository.Upsert(user)
                 && _unitOfWork.VerificationCodeRepository.Remove(verificationCode))
                 if (await _unitOfWork.Complete() > 0)
-                    return true;
+                    return ServiceResponseUtils.FormOkResponse();
 
-            return false;
+            return ServiceResponseUtils.FormWrongResponse();
         }
 
         private VerificationCode CreateVerificationCode(User user)

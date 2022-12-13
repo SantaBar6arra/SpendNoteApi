@@ -17,7 +17,7 @@ namespace WebApi.Controllers
 {
     [Route("[controller]")]
     [ApiController]
-    public class AuthController : ControllerBase
+    public class AuthController : BaseController
     {
         private readonly AuthService _service;
 
@@ -27,21 +27,17 @@ namespace WebApi.Controllers
         }
 
         [HttpPost("signup")]
-        public async Task<ActionResult> Signup([FromBody] UserDto userDto)
+        public async Task<IActionResult> Signup([FromBody] UserDto userDto)
         {
-            int? userId = await _service.Signup(userDto);
-            if (userId != null)
-                return Ok(userId);
-            return BadRequest();
+            var serviceResponse = await _service.Signup(userDto);
+            return HandleServiceResponse(serviceResponse);
         }
 
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] UserDto userDto)
         {
-            TokenResult? token = await _service.Login(userDto);
-            if (token != null)
-                return Ok(token);
-            return BadRequest();
+            var serviceResponse = await _service.Login(userDto);
+            return HandleServiceResponse(serviceResponse);
         }
     }
 }

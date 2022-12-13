@@ -35,42 +35,45 @@ namespace WebApi.Services.ControllerServices
         }
 
         [HttpPut()]
-        public async Task<bool> Upsert(ListDto listDto)
+        public async Task<ServiceResponse> Upsert(ListDto listDto)
         {
             var user = await _unitOfWork.UserRepository.GetById(_userId);
 
             if (user == null)
-                return false;
+                return ServiceResponseUtils.FormUserNotFoundResponse();
+
+            if (listDto.UserId != 0 && listDto.UserId != _userId)
+                return ServiceResponseUtils.FormForbiddenResponse();
 
             List list = new()
             {
-                Id = listDto.Id,
                 User = user,
                 Name = listDto.Name,
+                Id = listDto.Id
             };
 
             if (_unitOfWork.ListRepository.Upsert(list))
                 if (await _unitOfWork.Complete() > 0)
-                    return true;
+                    return ServiceResponseUtils.FormOkResponse();
 
-            return false;
+            return ServiceResponseUtils.FormWrongResponse();
         }
 
-        public async Task<bool> Delete(int id)
+        public async Task<ServiceResponse> Delete(int id)
         {
             var list = await _unitOfWork.ListRepository.GetById(id);
 
             if (list == null)
-                return false;
+                return ServiceResponseUtils.FormNotFoundResponse(HttpResponseReasons.ObjToBeDeletedNotFound);
 
             if (list.User.Id != _userId)
-                return false;
+                return ServiceResponseUtils.FormForbiddenResponse();
 
             if (_unitOfWork.ListRepository.Remove(list))
                 if (await _unitOfWork.Complete() > 0)
-                    return true;
+                    return ServiceResponseUtils.FormOkResponse();
 
-            return false;
+            return ServiceResponseUtils.FormWrongResponse();
         }
     }
 }

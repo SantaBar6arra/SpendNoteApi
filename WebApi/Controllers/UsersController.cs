@@ -16,7 +16,7 @@ namespace WebApi.Controllers
     [ApiController]
     [Authorize]
     [Route("[controller]")]
-    public class UsersController : ControllerBase
+    public class UsersController : BaseController
     {
         private readonly ILogger<UsersController> _logger;
         private readonly UserService _userService;
@@ -31,17 +31,15 @@ namespace WebApi.Controllers
         [HttpPost("request-password-update")]
         public async Task<IActionResult> RequestPasswordUpdate([FromBody] UserDto userDto)
         {
-            if(await _userService.RequestPasswordUpdate(userDto))
-                return Ok();
-            return BadRequest(HttpResponseReasons.SomethingWentWrong);
+            var serviceResponse = await _userService.RequestPasswordUpdate(userDto);
+            return HandleServiceResponse(serviceResponse);
         }
 
         [HttpPut("submit-password-update")]
         public async Task<IActionResult> UpdatePassword([FromBody] UpdatePasswordDto updatePasswordDto)
         {
-            if (await _userService.UpdatePassword(updatePasswordDto))
-                return Ok();
-            return BadRequest(HttpResponseReasons.SomethingWentWrong);
+            var serviceResponse = await _userService.UpdatePassword(updatePasswordDto);
+            return HandleServiceResponse(serviceResponse);
         }
     }
 }

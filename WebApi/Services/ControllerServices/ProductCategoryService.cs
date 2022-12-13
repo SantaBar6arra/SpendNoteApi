@@ -36,42 +36,45 @@ namespace WebApi.Services.ControllerServices
         }
 
         [HttpPut()]
-        public async Task<bool> Upsert(ProductCategoryDto productCategoryDto)
+        public async Task<ServiceResponse> Upsert(ProductCategoryDto categoryDto)
         {
             var user = await _unitOfWork.UserRepository.GetById(_userId);
 
             if (user == null)
-                return false;
+                return ServiceResponseUtils.FormUserNotFoundResponse();
 
-            ProductCategory productCategory = new()
+            if (categoryDto.UserId != 0 && categoryDto.UserId != _userId)
+                return ServiceResponseUtils.FormForbiddenResponse();
+
+            ProductCategory category = new()
             {
-                Id = productCategoryDto.Id,
                 User = user,
-                Name = productCategoryDto.Name,
+                Name = categoryDto.Name,
+                Id = categoryDto.Id
             };
 
-            if (_unitOfWork.ProductCategoryRepository.Upsert(productCategory))
+            if (_unitOfWork.ProductCategoryRepository.Upsert(category))
                 if (await _unitOfWork.Complete() > 0)
-                    return true;
+                    return ServiceResponseUtils.FormOkResponse();
 
-            return false;
+            return ServiceResponseUtils.FormWrongResponse();
         }
 
-        public async Task<bool> Delete(int id)
+        public async Task<ServiceResponse> Delete(int id)
         {
             var category = await _unitOfWork.ProductCategoryRepository.GetById(id);
 
             if (category == null)
-                return false;
+                return ServiceResponseUtils.FormNotFoundResponse(HttpResponseReasons.CategoryNotFound);
 
             if (category.User.Id != _userId)
-                return false;
+                return ServiceResponseUtils.FormForbiddenResponse();
 
             if (_unitOfWork.ProductCategoryRepository.Remove(category))
                 if (await _unitOfWork.Complete() > 0)
-                    return true;
+                    return ServiceResponseUtils.FormOkResponse();
 
-            return false;
+            return ServiceResponseUtils.FormWrongResponse();
         }
     }
 }

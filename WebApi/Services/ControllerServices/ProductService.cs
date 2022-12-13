@@ -1,6 +1,7 @@
 ﻿using Data;
 using Data.Models;
 using Microsoft.AspNetCore.Mvc;
+using WebApi.Constants;
 using WebApi.Dtos;
 
 namespace WebApi.Services.ControllerServices
@@ -17,15 +18,15 @@ namespace WebApi.Services.ControllerServices
         }
 
         [HttpGet("{listId}")]
-        public async Task<IEnumerable<ProductDto>?> GetAll(int listId)
+        public async Task<ServiceResponse> GetAll(int listId)
         {
             var list = await _unitOfWork.ListRepository.GetById(listId);
 
             if (list == null)
-                return null;
+                return ServiceResponseUtils.FormNotFoundResponse("list not found");
 
             if (list.User.Id != _userId)
-                return null;
+                return ServiceResponseUtils.FormForbiddenResponse();
 
             var products = await _unitOfWork.ProductRepository.GetAll(listId);
             List<ProductDto> productDtos = new() { Capacity = products.Count() };
@@ -45,26 +46,26 @@ namespace WebApi.Services.ControllerServices
                     IsBought = product.IsBought,
                 });
 
-            return productDtos;
+            return ServiceResponseUtils.FormObjectResponse(productDtos);
         }
 
-        public async Task<bool> Upsert(ProductDto productDto)
+        public async Task<ServiceResponse> Upsert(ProductDto productDto)
         {
             var list = await _unitOfWork.ListRepository.GetById(productDto.ListId);
 
             if (list == null)
-                return false;
+                return ServiceResponseUtils.FormNotFoundResponse("list not found");
 
             if (list.User.Id != _userId)
-                return false;
+                return ServiceResponseUtils.FormForbiddenResponse();
 
             var category = await _unitOfWork.ProductCategoryRepository.GetById(productDto.CategoryId);
 
             if (category == null)
-                return false;
+                return ServiceResponseUtils.FormNotFoundResponse(HttpResponseReasons.CategoryNotFound);
 
             if (category.User.Id != _userId)
-                return false;
+                return ServiceResponseUtils.FormForbiddenResponse();
 
             Product product = new()
             {
@@ -81,26 +82,26 @@ namespace WebApi.Services.ControllerServices
 
             if (_unitOfWork.ProductRepository.Upsert(product))
                 if (await _unitOfWork.Complete() > 0)
-                    return true;
+                    return ServiceResponseUtils.FormOkResponse();
 
-            return false;
+            return ServiceResponseUtils.FormWrongResponse();
         }
 
-        public async Task<bool> Delete(int id)
+        public async Task<ServiceResponse> Delete(int id)
         {
             var product = await _unitOfWork.ProductRepository.GetById(id);
 
             if (product == null)
-                return false;
+                return ServiceResponseUtils.FormNotFoundResponse(HttpResponseReasons.ObjToBeDeletedNotFound);
 
             if (product.List.User.Id != _userId)
-                return false;
+                return ServiceResponseUtils.FormForbiddenResponse();
 
             if (_unitOfWork.ProductRepository.Remove(product))
                 if (await _unitOfWork.Complete() > 0)
-                    return true;
+                    return ServiceResponseUtils.FormOkResponse();
 
-            return false;
+            return ServiceResponseUtils.FormWrongResponse();
         }
     }
 }
