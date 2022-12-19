@@ -12,7 +12,7 @@ namespace WebApi.Controllers
         {
             return serviceResponse.HttpStatusCode switch
             {
-                HttpStatusCode.OK => Ok(serviceResponse.Data),
+                HttpStatusCode.OK => Ok(serviceResponse.Data ?? serviceResponse.Message),
                 HttpStatusCode.BadRequest => BadRequest(serviceResponse.Message),
                 HttpStatusCode.Forbidden => Forbid(serviceResponse.Message),
                 HttpStatusCode.NotFound => NotFound(serviceResponse.Message),
